@@ -20,6 +20,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RefreshTokenDto, LogoutDto } from './dto/login.dto';
@@ -57,13 +58,16 @@ interface AuthenticatedRequest extends Request {
 @Controller('auth')
 export class AuthController {
   private readonly logger: LoggerService;
+  private readonly frontendUrl: string;
 
   constructor(
     private readonly authService: AuthService,
+    private readonly configService: ConfigService,
     logger: LoggerService,
   ) {
     this.logger = logger;
     this.logger.setContext('AuthController');
+    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
   }
 
   /**
@@ -106,7 +110,12 @@ export class AuthController {
 
     const result: AuthResponseDto = await this.authService.handleGoogleLogin(profile);
 
-    res.status(HttpStatus.OK).json(result);
+    const params = new URLSearchParams({
+      accessToken: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken,
+    });
+
+    res.redirect(`${this.frontendUrl}/callback?${params.toString()}`);
   }
 
   /**
