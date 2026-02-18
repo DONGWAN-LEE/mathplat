@@ -23,7 +23,20 @@ import { LoggerService } from '../logger/logger.service';
 /** 이관 대상 모델과 테이블명 매핑 */
 interface MigrationTarget {
   /** Prisma 모델 접근자 키 */
-  model: 'user' | 'userSession';
+  model:
+    | 'user'
+    | 'userSession'
+    | 'userStats'
+    | 'curriculum'
+    | 'chapter'
+    | 'section'
+    | 'topic'
+    | 'learningObjective'
+    | 'problem'
+    | 'userProblemAttempt'
+    | 'userProgress'
+    | 'achievement'
+    | 'userAchievement';
   /** 테이블 식별자 (로깅용) */
   tableName: string;
 }
@@ -39,8 +52,21 @@ export class DeleteMigrationService implements OnModuleInit {
   /** Soft Delete 데이터 보존 기간 (일) */
   private retentionDays: number;
 
-  /** 이관 대상 모델 목록 */
+  /** 이관 대상 모델 목록 (자식 → 부모 순서로 정렬하여 외래 키 제약 조건 준수) */
   private readonly migrationTargets: MigrationTarget[] = [
+    // 자식 엔티티 (먼저 삭제)
+    { model: 'userAchievement', tableName: 'UserAchievement' },
+    { model: 'userProblemAttempt', tableName: 'UserProblemAttempt' },
+    { model: 'userProgress', tableName: 'UserProgress' },
+    { model: 'userStats', tableName: 'UserStats' },
+    { model: 'learningObjective', tableName: 'LearningObjective' },
+    { model: 'problem', tableName: 'Problem' },
+    { model: 'topic', tableName: 'Topic' },
+    { model: 'section', tableName: 'Section' },
+    { model: 'chapter', tableName: 'Chapter' },
+    { model: 'curriculum', tableName: 'Curriculum' },
+    { model: 'achievement', tableName: 'Achievement' },
+    // 기존 엔티티
     { model: 'userSession', tableName: 'UserSession' },
     { model: 'user', tableName: 'User' },
   ];
