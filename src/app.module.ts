@@ -18,6 +18,11 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { SocketModule } from './core/socket/socket.module';
 import { UserModule } from './user/user.module';
+import { CurriculumModule } from './curriculum/curriculum.module';
+import { ProblemModule } from './problem/problem.module';
+import { AttemptModule } from './attempt/attempt.module';
+import { ProgressModule } from './progress/progress.module';
+import { AchievementModule } from './achievement/achievement.module';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import {
   appConfig,
@@ -58,6 +63,11 @@ import {
     HealthModule,
     SocketModule,
     UserModule,
+    CurriculumModule,
+    ProblemModule,
+    AttemptModule,
+    ProgressModule,
+    AchievementModule,
   ],
 })
 export class AppModule implements NestModule {
