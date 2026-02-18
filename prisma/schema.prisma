@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Auth & User Models
+// ============================================================
+
+model User {
+  id        String    @id @default(uuid())
+  googleId  String?   @unique
+  email     String    @unique
+  password  String?
+  name      String
+  picture   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessions         UserSession[]
+  problemAttempts  UserProblemAttempt[]
+  progresses       UserProgress[]
+  achievements     UserAchievement[]
+  stats            UserStats?
+
+  @@index([googleId])
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model UserSession {
+  id           String    @id @default(uuid())
+  userId       String
+  refreshToken String    @db.Text
+  deviceInfo   String?
+  ipAddress    String?
+  isValid      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  expiresAt    DateTime
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([refreshToken(length: 255)])
+  @@index([deletedAt])
+}
+
+// ============================================================
+// Education Domain - Curriculum Hierarchy
+// ============================================================
+
+model Curriculum {
+  id        String    @id @default(uuid())
+  name      String
+  grade     Int
+  semester  Int
+  subject   String    @default("수학")
+  orderIndex Int      @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  chapters Chapter[]
+
+  @@index([grade, semester])
+  @@index([deletedAt])
+}
+
+model Chapter {
+  id           String    @id @default(uuid())
+  curriculumId String
+  name         String
+  orderIndex   Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id])
+  sections   Section[]
+
+  @@index([curriculumId])
+  @@index([deletedAt])
+}
+
+model Section {
+  id         String    @id @default(uuid())
+  chapterId  String
+  name       String
+  orderIndex Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+  topics  Topic[]
+
+  @@index([chapterId])
+  @@index([deletedAt])
+}
+
+model Topic {
+  id         String    @id @default(uuid())
+  sectionId  String
+  name       String
+  orderIndex Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  section    Section             @relation(fields: [sectionId], references: [id])
+  objectives LearningObjective[]
+  problems   Problem[]
+  progresses UserProgress[]
+
+  @@index([sectionId])
+  @@index([deletedAt])
+}
+
+model LearningObjective {
+  id          String     @id @default(uuid())
+  topicId     String
+  description String     @db.Text
+  bloomLevel  BloomLevel @default(REMEMBER)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  topic    Topic     @relation(fields: [topicId], references: [id])
+  problems Problem[]
+
+  @@index([topicId])
+  @@index([deletedAt])
+}
+
+// ============================================================
+// Education Domain - Problems
+// ============================================================
+
+enum ProblemType {
+  MULTIPLE_CHOICE
+  SHORT_ANSWER
+  ESSAY
+  TRUE_FALSE
+  FILL_IN_BLANK
+}
+
+enum BloomLevel {
+  REMEMBER
+  UNDERSTAND
+  APPLY
+  ANALYZE
+  EVALUATE
+  CREATE
+}
+
+model Problem {
+  id            String      @id @default(uuid())
+  topicId       String
+  objectiveId   String?
+  content       String      @db.Text
+  type          ProblemType @default(MULTIPLE_CHOICE)
+  difficulty    Int         @default(1)
+  answer        Json
+  solution      Json
+  hints         Json?
+  conceptTags   Json?
+  estimatedTime Int         @default(60)
+  solveCount    Int         @default(0)
+  correctRate   Float       @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  topic     Topic              @relation(fields: [topicId], references: [id])
+  objective LearningObjective? @relation(fields: [objectiveId], references: [id])
+  attempts  UserProblemAttempt[]
+
+  @@index([topicId])
+  @@index([objectiveId])
+  @@index([type, difficulty])
+  @@index([deletedAt])
+}
+
+// ============================================================
+// Education Domain - User Activity
+// ============================================================
+
+model UserProblemAttempt {
+  id              String   @id @default(uuid())
+  userId          String
+  problemId       String
+  isCorrect       Boolean
+  submittedAnswer Json
+  timeTaken       Int      @default(0)
+  attemptNumber   Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  user    User    @relation(fields: [userId], references: [id])
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@index([userId, problemId])
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model UserProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  topicId        String
+  masteryLevel   Float    @default(0)
+  problemsSolved Int      @default(0)
+  correctCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  user  User  @relation(fields: [userId], references: [id])
+  topic Topic @relation(fields: [topicId], references: [id])
+
+  @@unique([userId, topicId])
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+// ============================================================
+// Gamification
+// ============================================================
+
+model Achievement {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String   @db.Text
+  iconUrl     String?
+  condition   Json
+  xpReward    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  userAchievements UserAchievement[]
+
+  @@index([deletedAt])
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model UserStats {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  totalXp             Int      @default(0)
+  level               Int      @default(1)
+  currentStreak       Int      @default(0)
+  longestStreak       Int      @default(0)
+  totalProblemsSolved Int      @default(0)
+  totalStudyTime      Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([deletedAt])
+}
